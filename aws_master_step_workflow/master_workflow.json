@@ -1,0 +1,32 @@
+{
+  "Comment": "Start Workflow",
+  "StartAt": "Audio URL?",
+  "States": {
+    "Audio URL?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.body.ScrapeorNot",
+          "StringEquals": "Yes",
+          "Next": "Scrape Audio"
+        },
+        {
+          "Variable": "$.body.ScrapeorNot",
+          "StringEquals": "No",
+          "Next": "Spawn Workflows"
+        }
+      ]
+    },
+
+    "Scrape Audio": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:165885578631:function:ScrapeAudio",
+      "Next": "Spawn Workflows"
+    },
+    "Spawn Workflows": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:165885578631:function:SpawnWorkflows",
+      "End": true
+    }
+  }
+}

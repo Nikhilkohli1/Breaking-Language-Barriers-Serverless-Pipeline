@@ -11,10 +11,16 @@ from login import authorize_user
 from signup import user_signup, confirm_signup
 import SessionState
 import pandas as pd
+from load_css import local_css
+import ast
 
 region = 'us-east-1'
 client_sf = boto3.client('stepfunctions')
 s3_client = boto3.client('s3', region_name = region)
+
+bucket_name_save = 'blb-scraped-audio'
+
+
 #TableName = "NERUserTokens"
 TableName_ = "BLB_Step_function_Meta"
 dynamodb = boto3.resource('dynamodb', region_name=region)
@@ -22,12 +28,15 @@ table_ = dynamodb.Table(TableName_)
 dynamodb_client = boto3.client('dynamodb', region_name = region)
 
 session_state = SessionState.get(checkboxed=False)
+#session_state1 = SessionState.get(username='')
 
 img_base = "https://www.htmlcsscolor.com/preview/128x128/{0}.png"
 
 colors = (''.join(choices(ascii_uppercase[:6] + digits, k=6)) for _ in range(100))
 st.set_page_config(layout="wide", page_title='Breaking Language Barriers')
 st.title('Breaking Language Barriers')
+
+local_css("style.css")
 
 st.markdown("""
 <style>
@@ -50,7 +59,6 @@ with st.beta_container():
 
 tab1, tab2 = st.beta_columns(2)    
     
-        
 with tab1:
 
     expand_l = st.beta_expander("Login")
@@ -69,13 +77,13 @@ with tab1:
                 authorized, uname = authorize_user(email, pwd)
                 if authorized:
                     session_state.checkboxed = True
+                    #session_state1.username = username
                     audio_bytes = get_welcome_msg(username)
                     st.success("You have successfully signed in as {}".format(username))
                     st.audio(audio_bytes, format='audio/ogg')
                     # save authorized info to session 
 
 with tab2:
-
     expand_s = st.beta_expander("Signup")
     with expand_s:
         username = st.text_input('Full Name')
@@ -84,7 +92,7 @@ with tab2:
         password = st.text_input('Password ', type='password')
         register = st.button('Register')
         if register:
-            user_signup(name, uname, email, password)
+            user_signup(username, uname, email, password)
         st.write('Enter the confirmation code sent to your Email to confirm Yourself')
         ccode = st.text_input('Confirmation Code')
         register2 = st.button('Confirm Your User')
@@ -118,6 +126,34 @@ Summarize = 'No'
 OutputAudio = 'No'
 Podcasts_links = []
 MaskingEntity = []
+Audio_Bytes = []
+
+original_audio = ''
+Audio_trans_map = {}
+Transcript_file = ''
+NER_Masking_map = {}
+TranslationorNER_v = ''
+language_v = []
+
+
+def save_podcast_audio(Audio_Bytes, Username):
+    scraped_audio_map = {}
+    uploaded_podcasts = []
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    scrape_audio_tmp = "/tmp/" + Username + "_scraped_audio_" + timestr + '.mp3'
+    scrape_audio = Username + "_scraped_audio_" + timestr + '.mp3'
+    with open(scrape_audio_tmp, mode='bx') as f:
+        f.write(Audio_Bytes)
+    f.close()
+    
+    response = s3_client.upload_file(Filename=scrape_audio_tmp, Bucket=bucket_name_save, Key='English/{}'.format(scrape_audio))
+    uploaded_podcasts.append(scrape_audio)
+
+        #store metadata of files in dynamo
+    scraped_audio_map['scraped_podcasts'] = uploaded_podcasts
+
+    return scraped_audio_map
+
 
 st.write('')
 st.markdown('Welcome to Breaking Language Barriers - Services Section')
@@ -125,27 +161,30 @@ st.write('')
 st.write('')
 services_e = st.beta_expander("Our Services")
 with services_e:
-
     st.markdown('')
     st.markdown('**Choose Input Type**')
     input_o = ['', 'Audio links', 'Audio files']
     input_s = st.selectbox('', options=input_o)
     if input_s == 'Audio files':
-    	st.markdown('**Upload audio file (mp3 | wav)**')
-    	audio_f_u = st.file_uploader("")
+    	st.markdown('**Upload Podcast file (mp3 | wav)**')
+    	audio_f_u = st.file_uploader("", type=['mp3','wav','zip','txt'])
     	if audio_f_u is not None:
             ScrapeorNot = 'No'
-            dataframe = pd.read_csv(audio_f_u)
-            t.write(dataframe)
+            audio_file = open(audio_f_u.name,"rb")
+            audio_bytes = audio_file.read()
+            audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
+            scraped_audio_map = save_podcast_audio(audio_bytes, username)
+            #dataframe = pd.read_csv(audio_f_u)
+            #t.write(dataframe)
     elif input_s == 'Audio links':
         st.markdown('**Upload CSV file with the Audio links to Scrape**')
         audio_l_u = st.file_uploader(" ")
         if audio_l_u is not None:
             ScrapeorNot = 'Yes'
             dataframe = pd.read_csv(audio_l_u)
-            st.write(dataframe)
+            #st.write(dataframe)
             for val in dataframe['Podcast_links']:
-                st.write(val)
+                #st.write(val)
                 Podcasts_links.append(val)
             st.markdown("---")
             st.markdown("**Select Services to be Applied**")
@@ -215,14 +254,17 @@ with services_e:
             Gender = gender_s
     st.write('')
     st.write('')
+    st.write('Enter a Identifier for your Execution')
+    username = st.text_input('Identifier')
     submit = st.button('Run Pipeline')
 
     if submit: 
         try:
+            print('1')
             if authorized or session_state.checkboxed:
                 st.success("Hey {}, You are authorized to use our services".format(username))
                 st.markdown("---")
-                
+                print('2')
                 timestr = time.strftime("%Y%m%d-%H%M%S")
                 User_selection_map = {"ScrapeorNot": ScrapeorNot,
                                     "Gender": Gender,
@@ -234,6 +276,7 @@ with services_e:
 
                 sf_name = username + '_blb_master_execution' + timestr
                 st.write(User_selection_map)
+                print('3')
 
                 sf_input = json.dumps({"body": {"User_selection_map": str(User_selection_map), 
                                "Langauges":str(Langauges),
@@ -247,6 +290,7 @@ with services_e:
                 name=sf_name,
                 input= sf_input)
                 st.write(response)
+                print('4')
                 
                 st.success('Pipeline Initiated, please check back after sometime to View/Download your files')
                 
@@ -264,94 +308,232 @@ st.write('')
 st.write('')
 
 visualize_e = st.beta_expander("Your Previous Documents")
+
 with visualize_e:
     prev_exec = []
+    st.write('Enter Your Identifier to View your Executions')
+    username = st.text_input('Identifier ')
+
     
     try:
+        #username = 'Nikhil'
         item_resp = table_.scan(
                 FilterExpression=Attr('Username').eq(username)
                     )
         for item in item_resp['Items']:
             prev_exec.append(item['Child_Step_function_Execution'])
-            st.write(prev_exec)
+            #st.write(prev_exec)
 
     except:
             st.write('You have no Previous History')
 
-    left_v, right_v = st.beta_columns(2)
-    with left_v:
-        execution_sel = st.selectbox('Select Pipeline Execution', prev_exec)
-    with right_v:
-        exec_lang = []
-        item_resp = table_.scan(
-        FilterExpression=Attr('Execution_name').eq(execution_sel)
+    execution_sel = st.selectbox('Select Pipeline Execution', prev_exec)
+    item_resp = table_.scan(
+        FilterExpression=Attr('Child_Step_function_Execution').eq(execution_sel)
                     )
-        for item in item_resp['Items']:
-            exec_lang.append(item['Langauges'])
-
-
-        lang_s_v = st.multiselect("Select Translated languages to Visualize", exec_lang, default=exec_lang)
-    
-
     #st.markdown('')
     #st.markdown('**Visualize Your Executions**')
-    visualize = st.button('Visualize Output')
-    if visualize:
+    #visualize = st.button('Visualize Output')
+    if execution_sel:
+
+        
+        TranslationorNER_v = item_resp['Items'][0]['TranslationorNER']
+        if(TranslationorNER_v == 'Translation'):
+            Audio_trans_map = ast.literal_eval(item_resp['Items'][0]['Audio_trans_map'])
+            original_audio = ast.literal_eval(item_resp['Items'][0]['Podcast_map'])['Scraped_podcast']
+            Transcript_file = item_resp['Items'][0]['Transcribe_file']
+            language_v = ast.literal_eval(item_resp['Items'][0]['Langauges'])
+
+
+
+
+        elif(TranslationorNER_v == 'NER'):
+            NER_Masking_map = ast.literal_eval(item_resp['Items'][0]['NER_Masking_map'])
+            original_audio = ast.literal_eval(item_resp['Items'][0]['Podcast_map'])['Scraped_podcast']
+            Transcript_file = item_resp['Items'][0]['Transcribe_file']
+
         #include logic here for visualising all files for selected languages for selected execution
-        st.write('Thanks for Visiting')
-        for i in range(0,len(lang_s_v)):
-            st.checkbox(lang_s_v[i], False)
+        #st.write('Thanks for Visiting')
+        Summarize_v = item_resp['Items'][0]['Summarize']
+        if(Summarize_v == 'Summarize'):
+            Audio_summ_trans_map = ast.literal_eval(item_resp['Items'][0]['audio_summ_trans_map'])
+            Transcript_file = item_resp['Items'][0]['Transcribe_file']
+            language_vs = ast.literal_eval(item_resp['Items'][0]['Langauges'])
 
-st.write('')
-st.write('')
-st.write('')
-st.write('')
-
-st.markdown('Podcasts in Translated Langauges')
-Viz1, Viz2, Viz3 = st.beta_columns(3)    
-    
         
-with Viz1:
-    language1 = 'French'
-    expand_l = st.beta_expander(language1)
-    with expand_l:
-        pass
-
-with Viz2:
-    language2 = 'German'
-    expand_l = st.beta_expander(language2)
-    with expand_l:
-        pass
-
-with Viz3:
-    language3 = 'Hindi'
-    expand_l = st.beta_expander(language3)
-    with expand_l:
-        pass
 
 st.write('')
 st.write('')
 st.write('')
 st.write('')
-st.write('')
 
-st.markdown('Podcasts after Masking Named Entities')
-Viz4, Viz5 = st.beta_columns(2)    
-    
+if execution_sel:
+    if(TranslationorNER_v == 'Translation'):
+        st.markdown('**Visualizing Language Translated Podcasts**')
+
+        st.markdown('Original Podcast')
+
+        bucket_1 = 'blb-translated-audio'
+        bucket_2 = 'blb-scraped-audio'
+        o_audio_file_name = original_audio
+        audio_file_path =  'English/{}'.format(o_audio_file_name)
+        response = s3_client.get_object(Bucket=bucket_2, Key=audio_file_path)
+        audio_bytes = response['Body'].read()
+        audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
+
+        st.markdown('Podcasts in Translated Langauges')
         
-with Viz4:
+        if len(language_v) < 3:
+            for i in range(3-len(language_v)):
+                language_v.append('')
 
-    expand_l = st.beta_expander("NER Visualization")
-    with expand_l:
-        pass
+        Viz1 , Viz2, Viz3 = st.beta_columns(3) 
+            
+                
+        with Viz1:
+            language1 = language_v[0]
+            expand_l = st.beta_expander(language1)
+            with expand_l:
+                audio_file_name = Audio_trans_map[language_v[0]]
+                audio_file_path = language1 + '/{}'.format(audio_file_name)
+                response = s3_client.get_object(Bucket=bucket_1, Key=audio_file_path)
+                audio_bytes = response['Body'].read()
+                audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
+                
 
-with Viz5:
+        with Viz2:
+            language2 = language_v[1]
+            expand_l = st.beta_expander(language2)
+            with expand_l:
+                if language2 == '':
+                    pass
+                else:
 
-    expand_l = st.beta_expander("Masked Podcast")
-    with expand_l:
-        pass
+                    audio_file_name = Audio_trans_map[language_v[1]]
+                    audio_file_path = language2 + '/{}'.format(audio_file_name)
+                    response = s3_client.get_object(Bucket=bucket_1, Key=audio_file_path)
+                    audio_bytes = response['Body'].read()
+                    audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
 
-    
+        with Viz3:
+            language3 = language_v[2]
+            expand_l = st.beta_expander(language3)
+            with expand_l:
+                if language3 == '':
+                    pass
+                else:
+                    audio_file_name = Audio_trans_map[language_v[2]]
+                    audio_file_path = language3 + '/{}'.format(audio_file_name)
+                    response = s3_client.get_object(Bucket=bucket_1, Key=audio_file_path)
+                    audio_bytes = response['Body'].read()
+                    audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
+
+
+    if(Summarize_v == 'Summarize'):
+        st.markdown('Visualizing Summary & its Translated Podcasts')
+
+        st.markdown('Original Podcast')
+
+        bucket_1 = 'blb-summary-translated-audio'
+        bucket_2 = 'blb-scraped-audio'
+
+        o_audio_file_name = original_audio
+        audio_file_path = 'English/{}'.format(o_audio_file_name)
+        response = s3_client.get_object(Bucket=bucket_2, Key=audio_file_path)
+        audio_bytes = response['Body'].read()
+        audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
+
+        st.markdown('**Podcasts Summary in Translated Langauges**')
+        
+        if len(language_vs) < 3:
+            for i in range(3-len(language_vs)):
+                language_vs.append('')
+
+        Vizs1 , Vizs2, Vizs3 = st.beta_columns(3) 
+            
+                
+        with Vizs1:
+            language1 = language_vs[0]
+            expand_l = st.beta_expander(language1)
+            with expand_l:
+                audio_file_name = Audio_summ_trans_map[language_vs[0]]
+                audio_file_path = language1 + '/{}'.format(audio_file_name)
+                response = s3_client.get_object(Bucket=bucket_1, Key=audio_file_path)
+                audio_bytes = response['Body'].read()
+                audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
+                
+
+        with Vizs2:
+            language2 = language_vs[1]
+            expand_l = st.beta_expander(language2)
+            with expand_l:
+                if language2 == '':
+                    pass
+                else:
+
+                    audio_file_name = Audio_summ_trans_map[language_vs[1]]
+                    audio_file_path = language2 + '/{}'.format(audio_file_name)
+                    response = s3_client.get_object(Bucket=bucket_1, Key=audio_file_path)
+                    audio_bytes = response['Body'].read()
+                    audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
+
+        with Vizs3:
+            language3 = language_vs[2]
+            expand_l = st.beta_expander(language3)
+            with expand_l:
+                if language3 == '':
+                    pass
+                else:
+                    audio_file_name = Audio_summ_trans_map[language_vs[2]]
+                    audio_file_path = language3 + '/{}'.format(audio_file_name)
+                    response = s3_client.get_object(Bucket=bucket_1, Key=audio_file_path)
+                    audio_bytes = response['Body'].read()
+                    audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
+
+    elif(TranslationorNER_v == 'NER'):
+        st.write('')
+        st.write('')
+        st.markdown('**Visualizing NER Outputs**')
+
+        st.markdown('Original Podcast')
+
+        bucket_s = 'blb-scraped-audio'
+        bucket_t = 'blb-ner-masked-text'
+        bucket_a = 'blb-ner-masked-audio'
+
+        o_audio_file_name = original_audio
+        audio_file_path =  'English/{}'.format(o_audio_file_name)
+        response = s3_client.get_object(Bucket=bucket_s, Key=audio_file_path)
+        audio_bytes = response['Body'].read()
+        audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
+
+        st.markdown('Podcasts after Masking Named Entities')
+        Viz4, Viz5 = st.beta_columns(2)    
+            
+                
+        with Viz4:
+
+            expand_l = st.beta_expander("NER Visualization")
+            with expand_l:
+                ner_audio_file_name = NER_Masking_map['Entities_VIZ_file']
+                audio_file_path =  'Original/{}'.format(ner_audio_file_name)
+                response = s3_client.get_object(Bucket=bucket_t, Key=audio_file_path)
+                orignial_html = response['Body'].read().decode('utf-8')
+
+                color_lookup = {'PERSON':'tomato', 'ORGANIZATION':'aqua','EVENT':'dred', 'TITLE':'orchid', 'LOCATION':'blue', 'COMMERCIAL_ITEM':'red', 'DATE':'coral', 'QUANTITY':'pink', 'OTHER':'greenyellow'}
+                st.markdown(orignial_html, unsafe_allow_html=True)
+
+        with Viz5:
+
+            expand_l = st.beta_expander("Masked Podcast")
+            with expand_l:
+                ner_audio_file_name = NER_Masking_map['Audio_masked_file']
+                audio_file_path =  'English/{}'.format(ner_audio_file_name)
+                response = s3_client.get_object(Bucket=bucket_a, Key=audio_file_path)
+                audio_bytes = response['Body'].read()
+                audiof=st.audio(audio_bytes,format='audio/ogg',start_time=0)
+
+            
 
 
 

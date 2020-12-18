@@ -262,7 +262,7 @@ with services_e:
         try:
             print('1')
             if authorized or session_state.checkboxed:
-                st.success("Hey {}, You are authorized to use our services".format(username))
+                st.write("Hey {}, You are authorized to use our services".format(username))
                 st.markdown("---")
                 print('2')
                 timestr = time.strftime("%Y%m%d-%H%M%S")
@@ -275,7 +275,7 @@ with services_e:
                                         }
 
                 sf_name = username + '_blb_master_execution' + timestr
-                st.write(User_selection_map)
+                #st.write(User_selection_map)
                 print('3')
 
                 sf_input = json.dumps({"body": {"User_selection_map": str(User_selection_map), 
@@ -289,7 +289,7 @@ with services_e:
                 stateMachineArn='arn:aws:states:us-east-1:165885578631:stateMachine:BreakingBarriersMaster',
                 name=sf_name,
                 input= sf_input)
-                st.write(response)
+                #st.write(response)
                 print('4')
                 
                 st.success('Pipeline Initiated, please check back after sometime to View/Download your files')

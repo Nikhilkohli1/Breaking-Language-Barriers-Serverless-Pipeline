@@ -7,36 +7,42 @@
 http://3.85.147.6:8501/
 
 
-
 ## Codelabs
 
 https://codelabs-preview.appspot.com/?file_id=1dXKHuohRDgSZ0ZNEV1IM7HvMwl88bMCi3bkk1zInp8Y#0
 
 
-
 ## Overview
 
-Natural Language Processing based Big Data Pipeline system to convert product information, blogs, news, podcasts published in any language to other language based off of user's choice using state of the art machine learning models powered by AWS architecture.
+Natural Language Processing based Big Data Pipeline system to convert product information, blogs or news podcasts published in any language to other multiple languages based on user's choice using state of the art machine learning models powered by AWS architecture. 
 
+- Language Translation 
+- NER Audio Masking 
+- Summarization
 
 
 ## Architecture
 
-![img](https://lh6.googleusercontent.com/kvBi4dwVNdpqmkRHvQLp2_mFTWnMS0sQcyhTCBHNIaE5D2_I015ssHgOiqRgmTDb6Rp1t3FGpH3OyVHkZpRKMNHp5uEWkgEEa1kyJ1ssTkhaN4IdL2h3ljvyZ27P1s25ufX-eDyO1cCNY2y3Lsx5AfHPH9RDhQONp9AvmIRIMFtAKekq))
+![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/aws_architecture.png))
 
 ## Step Function Workflow
 
-For our application we have developed a specific design pattern for our step functions which is parent and child processes. For child step function process, some of the executions are done parallelly like transcribing different audio files into text format.
+For our application we have developed a specific design pattern for our step functions which is parent and child processes or also known as Nested Workflows.
+The parent Step function spawns multiple Child Step functions to process multiple input Audio links/files parallelly.
 
-Parent workflow:
+## Parent workflow:
 
 ![img](https://lh4.googleusercontent.com/ny9MIWyx8_XegbHN-HmBmFvPZ4_YuWdjcv1J4gJtvNcYhPelzrKKwdaKg9zwA8lOz7qBrMWVhD0GbhyejRSAF6SmgxS8FCN9_cvmeA_dMVIhJJOtU35MTzz0XRg_YXYdspT73_f3EEJjUBXjp9BxAr-4HgXXNGsD0FI8_QwuSMg5LX4X)
 
-Child Workflow:
+## Child Workflow:
 
 ![img](https://lh4.googleusercontent.com/zZ9i_XjrgJhY-MbBNTCgcy2cirerr0VS98u9jrdSP58Pm3JO33gAYxMLvKLb2CxD9Xv_u22sk9-rGKPl7I4IJ-Rng5hYezNR8dUXv7D3ZquLDb88ApN5P5BM7M_tB0BHhiGJNwnI4k4JotQOrziKRBoTwXnqAjHo2hjYxktchelLzoJO)
 
+### Language Translation Step function Execution 
+![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/Translation%20sf.png)
 
+### NER Masking Step function Execution  
+![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/NER%20sf.PNG)
 
 ## X-Ray Service Graph
 
@@ -44,11 +50,31 @@ We are using AWS X-Ray to debug and monitor our application. By enabling X-Ray f
 
 ![img](https://lh3.googleusercontent.com/e214oE0aZumT1OZymdizWFLS7beuxLISTH02ub5GaaO3GE8P5-D_beEoSXkMSKeNd_CKe5lb3zhzlSINcAMFLixQLP24kXCnJAz6UxI-15Bon-EBQMH40xe6_XjqPVoS_rza3pLPHVJHhXIn3XM72bv03ebM_wMHGiVr5E5f-yu2Pv75)
 
+
+## Application Screenshots 
+
+Login/Signup
+![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/Grid%20layout.PNG)
+
+Services
+
+![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/services1.PNG)
+![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/Masking.PNG)
+
+
+NER Masking Output 
+
+![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/NER%20Output.PNG)
+
+Language Translation Output 
+![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/Translation%20Output.PNG)
+
+
 ## Quick Sight Integration
 
 For our application we have integrated our meta database tables located in DynamoDB with AWS Quick Sight service to generate various analyses/dashboards to visualize different aspects of our application.
 
-![img](https://lh3.googleusercontent.com/vb7Sluun52kMqAIiJq5mjscUba3zg0Xnl6SQwDOaT6fQbP3F3nkCog9npJKwpugTaJt51WtI7eYSwpVD2ZUXI37SQWpZgzLy5KUxWteZpAJi-2cUZsbNrsxvVkavxaDyIIzS6aro83AN9l7b2_3OgswTApUvs97ju12z_JcIe6NGlnb3)
+![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/dash.PNG)
 
 
 

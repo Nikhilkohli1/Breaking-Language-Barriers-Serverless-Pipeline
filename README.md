@@ -23,7 +23,7 @@ Natural Language Processing based Big Data Pipeline system to convert product in
 
 ## Architecture
 
-![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/aws_architecture.png))
+![img](https://github.com/Nikhilkohli1/Breaking-Language-Barriers-Serverless-Pipeline/blob/main/application-screenshots/aws_architecture.png)
 
 ## Step Function Workflow
 
